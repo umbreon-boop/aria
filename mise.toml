@@ -9,7 +9,7 @@ luajit = "latest"
 
 [tasks.build]
 description = "Build the project"
-run = "umbra build src/init.lua"
+run = "umbra build"
 
 [tasks.serve]
 description = "Locally serve the built project"
@@ -23,9 +23,9 @@ run = "umbra fmt"
 [tasks.lint]
 description = "Check code quality without modifying files"
 tools = { "aqua:Kampfkarren/selene" = "latest" }
-run = "umbra fmt --check src && selene src/*"
+run = "umbra fmt && selene src/*"
 
 [tasks.doc]
 description = "Build the documentation"
 tools = { "pipx:zensical" = "latest" }
-run = "rm -f docs/API/*.md && umbra doc src && zensical build -f zensical.toml"
+run = "rm -f docs/API/*.md && umbra doc && zensical build -f zensical.toml"
