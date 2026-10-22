@@ -18,6 +18,7 @@ export type Deque = typeof(setmetatable({} :: {
 	@param value any -- The value to enqueue. Must not be `nil`, since `pop` uses `nil` to signal an empty queue.
 ]=]
 function Deque.Push(self: Deque, value: any)
+	assert(value ~= nil, "Deque values cannot be nil")
 	self.tail += 1
 	self.items[self.tail] = value
 end
@@ -29,6 +30,7 @@ end
 	@param value any -- The value to enqueue. Must not be `nil`, since `pop` uses `nil` to signal an empty queue.
 ]=]
 function Deque.PushFront(self: Deque, value: any)
+	assert(value ~= nil, "Deque values cannot be nil")
 	self.head -= 1
 	self.items[self.head] = value
 end

@@ -32,10 +32,10 @@ end
 function Cache:To(value: string, name: string, folder: string?)
 	folder = if folder then string.gsub(folder, "/+$", "") else "Aria/Cache"
 	local path = folder .. "/" .. name
-	data[path] = value
 
 	Cache.Assure(folder)
 	writefile(path, value)
+	data[path] = value
 end
 
 --[=[

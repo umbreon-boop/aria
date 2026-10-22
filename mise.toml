@@ -4,8 +4,11 @@
 "github:astral-sh/uv" = "latest"
 
 # `umbra` depends on `luajit` as it is itself mostly written in Lua
-"github:umbreon-boop/umbra" = "latest"
+"github:umbreon-boop/umbra" = "0.2.2"
 luajit = "latest"
+
+# required for the CI workflow
+"github:lune-org/lune" = "latest"
 
 [tasks.build]
 description = "Build the project"
@@ -21,9 +24,13 @@ description = "Formats the project"
 run = "umbra fmt"
 
 [tasks.lint]
-description = "Check code quality without modifying files"
-tools = { "aqua:Kampfkarren/selene" = "latest" }
-run = "umbra fmt && selene src/*"
+description = "Lint the project"
+tools = { "cargo:selene" = "latest" }
+run = "selene src/*"
+
+[tasks.test]
+description = "Run the Lune test suite"
+run = "lune run tests/main.luau"
 
 [tasks.doc]
 description = "Build the documentation"

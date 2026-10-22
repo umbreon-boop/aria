@@ -64,7 +64,7 @@ function Interface.New(callbacks: { [string]: Callback | { Callback } }?, storag
 	end
 
 	rawset(self, "_callbacks", lists)
-	rawset(self, "_storage", storage or {})
+	rawset(self, "_storage", if storage then clone(storage) else {})
 
 	return self
 end

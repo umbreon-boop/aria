@@ -1,7 +1,7 @@
 --[=[
-	@class Event
 	A simple event system for connecting and firing callbacks.
-	The module itself is a shared emitter. Use `Event.new()` to make an independent emitter.
+	The module itself is a shared emitter. Use `Event.New()` to make an independent emitter.
+	@class Event
 ]=]
 local Event = { _event = {}, _waitThreads = {} }
 Event.__index = Event
@@ -17,15 +17,6 @@ export type Connection = {
 }
 
 --[=[
-	Creates an independent emitter. Its events are not shared with the module or with other emitters.
-	@return Event -- A new emitter with no connections.
-]=]
-function Event.new()
-	return setmetatable({ _event = {}, _waitThreads = {} }, Event)
-end
-Event.New = Event.new
-
---[=[
 	Fires all callbacks connected to the specified event.
 	If a callback from `ConnectParallel` is connected, this function yields.
 	@param name string -- The name of the event to fire
@@ -39,8 +30,8 @@ function Event:Fire(name: string, ...: any): { any }
 
 	if callbacks then
 		-- a copy, so that a callback can disconnect during the loop
-		for _, callback in table.clone(callbacks) do
-			local success, err = pcall(callback, ...)
+		for _, entry in table.clone(callbacks) do
+			local success, err = pcall(entry.callback, ...)
 			if not success then
 				table.insert(errors, err)
 			end
@@ -70,7 +61,8 @@ end
 function Event:Connect(name: string, callback: (...any) -> ()): Connection
 	local event = self
 	event._event[name] = event._event[name] or {}
-	table.insert(event._event[name], callback)
+	local entry = {callback = callback}
+	table.insert(event._event[name], entry)
 
 	local connection: Connection = {
 		Connected = true,
@@ -84,7 +76,7 @@ function Event:Connect(name: string, callback: (...any) -> ()): Connection
 
 		conn.Connected = false
 		local callbacks = event._event[name]
-		local index = callbacks and table.find(callbacks, callback)
+		local index = callbacks and table.find(callbacks, entry)
 		if index then
 			table.remove(callbacks, index)
 		end
@@ -126,5 +118,15 @@ function Event:Wait(name: string): ...any
 	table.insert(self._waitThreads[name], coroutine.running())
 	return coroutine.yield()
 end
+
+--[=[
+	Creates an independent emitter. Its events are not shared with the module or with other emitters.
+	@return Event -- A new emitter with no connections.
+]=]
+function Event.New()
+	return setmetatable({ _event = {}, _waitThreads = {} }, Event)
+end
+
+Event.new = Event.New
 
 return Event
