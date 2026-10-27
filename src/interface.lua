@@ -42,7 +42,11 @@ local function clone(t, seen)
 	seen[t] = result
 	for k, v in pairs(t) do
 		-- rawset, because the metatable can have a __newindex, for example an Interface
-		rawset(result, k, if type(v) == "table" then clone(v, seen) else v)
+		local copy = v
+		if type(v) == "table" then
+			copy = clone(v, seen)
+		end
+		rawset(result, k, copy)
 	end
 	return result
 end
@@ -60,11 +64,15 @@ function Interface.New(callbacks: { [string]: Callback | { Callback } }?, storag
 	local lists = {}
 	for name, calls in callbacks or {} do
 		-- a copy, so that a later Define does not change the table of the caller
-		lists[name] = if type(calls) == "function" then { calls } else table.clone(calls)
+		lists[name] = type(calls) == "function" and {calls} or table.clone(calls)
 	end
 
 	rawset(self, "_callbacks", lists)
-	rawset(self, "_storage", if storage then clone(storage) else {})
+	local initialStorage = {}
+	if storage then
+		initialStorage = clone(storage)
+	end
+	rawset(self, "_storage", initialStorage)
 
 	return self
 end
@@ -119,7 +127,11 @@ function Interface:Clone(): Interface
 	local new = setmetatable({}, getmetatable(self))
 	seen[self] = new
 	for property, value in pairs(self) do
-		rawset(new, property, if type(value) == "table" then clone(value, seen) else value)
+		local copy = value
+		if type(value) == "table" then
+			copy = clone(value, seen)
+		end
+		rawset(new, property, copy)
 	end
 
 	return new

@@ -140,11 +140,17 @@ local function readHeader(vec)
 end
 
 local function toSigned(value)
-	return if value >= 0x80000000 then value - 0x100000000 else value
+	if value >= 0x80000000 then
+		return value - 0x100000000
+	end
+	return value
 end
 
 local function toSigned16(value)
-	return if value >= 0x8000 then value - 0x10000 else value
+	if value >= 0x8000 then
+		return value - 0x10000
+	end
+	return value
 end
 
 --@inline
@@ -187,7 +193,10 @@ end
 
 local function enumName(value)
 	local name = tostring(value.EnumType)
-	return if string.sub(name, 1, 5) == "Enum." then string.sub(name, 6) else name
+	if string.sub(name, 1, 5) == "Enum." then
+		return string.sub(name, 6)
+	end
+	return name
 end
 
 local datatypes = {}
@@ -801,7 +810,10 @@ deserializers[Type.BUFFER] = function(vec, pos)
 	if length > MAX_STRING or pos + length * 8 > vec.length then
 		error("Invalid buffer length", 2)
 	end
-	local value = if length == 0 then "" else vec:ReadString(pos // 8, length)
+	local value = ""
+	if length > 0 then
+		value = vec:ReadString(pos // 8, length)
+	end
 	return buffer.fromstring(value), pos + length * 8
 end
 
@@ -1003,7 +1015,10 @@ local function resolveInstance(className, ownPath)
 		local ok, service = pcall(function()
 			return game:GetService(className)
 		end)
-		return if ok then service else nil
+		if ok then
+			return service
+		end
+		return nil
 	end
 
 	if notCreatableClasses[className] and #ownPath > 0 then
@@ -1181,13 +1196,24 @@ local function writeInstanceSection(vec, state, context, serializeFunction)
 		local parentId = parent and state.idOf[parent] or 0
 		writeu32(vec, parentId)
 		if parentId == 0 then
-			writePath(vec, if parent then getInstancePath(parent) else {})
+			local parentPath = {}
+			if parent then
+				parentPath = getInstancePath(parent)
+			end
+			writePath(vec, parentPath)
 		end
 
 		writeString(vec, instance.ClassName)
 
-		local ownPath = if serviceClasses[instance.ClassName] then {} else getInstancePath(instance)
-		writeu8(vec, if #ownPath > 0 then 1 else 0)
+		local ownPath = {}
+		if not serviceClasses[instance.ClassName] then
+			ownPath = getInstancePath(instance)
+		end
+		local hasOwnPath = 0
+		if #ownPath > 0 then
+			hasOwnPath = 1
+		end
+		writeu8(vec, hasOwnPath)
 		if #ownPath > 0 then
 			writePath(vec, ownPath)
 		end

@@ -14,7 +14,7 @@ local function Encoder()
 		if not ok or not service then
 			error("EncodingService is unavailable", 2)
 		end
-		Service = service
+		Service = cloneref and cloneref(service) or service
 	end
 	return Service
 end
@@ -31,7 +31,10 @@ export type Vec = typeof(setmetatable({} :: {
 function Vec:_ensure(required)
 	local capacity = buffer.len(self.inner)
 	if (required - capacity) > 0 then
-		capacity = if required > capacity * 2 then required else capacity * 2
+		capacity *= 2
+		if required > capacity then
+			capacity = required
+		end
 
 		local new = buffer.create(capacity)
 		self.capacity = capacity
@@ -42,7 +45,9 @@ function Vec:_ensure(required)
 end
 
 function Vec:_use(slots)
-	self.length = if slots > self.length then slots else self.length
+	if slots > self.length then
+		self.length = slots
+	end
 end
 
 --[=[
@@ -100,7 +105,10 @@ end
 	@param count number? -- How many **bytes** to write
 ]=]
 function Vec:WriteString(offset: number, value: string, count: number?)
-	local required = if count then offset + count else offset + #value
+	local required = offset + #value
+	if count then
+		required = offset + count
+	end
 	self:_ensure(required)
 
 	self:_use(required * 8)
@@ -184,7 +192,14 @@ end
 	@error "Decompressed size (N) exceeds maximum allowed (M)" -- The declared size is greater than maxBytes
 ]=]
 function Vec.Decompress(compressed: buffer | Vec, maxBytes: number?): Vec
-	local data = if typeof(compressed) == "buffer" then compressed elseif getmetatable(compressed) == Vec then compressed.inner else error("Expected buffer or Vec", 2)
+	local data
+	if typeof(compressed) == "buffer" then
+		data = compressed
+	elseif getmetatable(compressed) == Vec then
+		data = compressed.inner
+	else
+		error("Expected buffer or Vec", 2)
+	end
 	local encoder = Encoder()
 	local size = encoder:GetDecompressedBufferSize(data, Enum.CompressionAlgorithm.Zstd)
 	if not size or size < 4 then

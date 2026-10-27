@@ -45,7 +45,9 @@ end
 
 --@inline
 local function position(self: Maid, task: Task): number?
-	return if self._index then self._index[task] else nil
+	if self._index then
+		return self._index[task]
+	end
 end
 
 --@inline

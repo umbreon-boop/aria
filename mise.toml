@@ -4,7 +4,7 @@
 "github:astral-sh/uv" = "latest"
 
 # `umbra` depends on `luajit` as it is itself mostly written in Lua
-"github:umbreon-boop/umbra" = "0.2.2"
+"github:umbreon-boop/umbra" = "latest"
 luajit = "latest"
 
 # required for the CI workflow

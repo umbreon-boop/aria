@@ -61,7 +61,7 @@ No underscores or dashes in names, unless a later rule explicitly allows them.
 ### File Structure and Definitions
 
 - Module imports, service references, constants, and variable initializations go at the top of the file, preferably in that order.
-- Do not build variable definitions from long chains of logical operators. Use an `if` expression instead.
+- Prefer logical operator assignments (`and`/`or`) over `if` statements or Luau `if` expressions when both branches assign the same variable. Do not build long chains or nest them more than two levels deep.
 - The entire public API requires type annotations on parameters and return types. Private and internal members do not need them.
 - Defining a custom exported type for a public function's return value is optional, as long as the `@return` tag in its doc comment documents the shape correctly.
 
@@ -78,7 +78,7 @@ local Input = game:GetService("UserInputService")
 -- in practice each category would be large enough to be worth separating
 local Exampler = {}
 local MAX_RETRIES = 3
-local lastInput = if Service then {} else nil
+local lastInput = Input and {} or nil
 
 --[=[
 	The shape returned by Exampler.New.
