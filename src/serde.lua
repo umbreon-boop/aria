@@ -35,6 +35,7 @@ local function writeu8(vec, value)
 	vec:Append(8, value)
 end
 
+--@inline
 local function readu8(vec, pos)
 	if pos + 8 > vec.length then
 		error("Truncated serialized data", 2)
@@ -42,6 +43,7 @@ local function readu8(vec, pos)
 	return vec:Read(pos, 8), pos + 8
 end
 
+--@inline
 local function readBool(vec, pos)
 	local value
 	value, pos = readu8(vec, pos)
@@ -52,10 +54,11 @@ local function readBool(vec, pos)
 end
 
 --@inline
-local function writeu32(vec, value)
-	vec:Append(32, value % 0x100000000)
+local function writeu32(vec, bits)
+	vec:Append(32, bits % 0x100000000)
 end
 
+--@inline
 local function readu32(vec, pos)
 	if pos + 32 > vec.length then
 		error("Truncated serialized data", 2)
@@ -68,6 +71,7 @@ local function writeu16(vec, value)
 	vec:Append(16, value % 0x10000)
 end
 
+--@inline
 local function readu16(vec, pos)
 	if pos + 16 > vec.length then
 		error("Truncated serialized data", 2)
@@ -84,6 +88,7 @@ local function writeString(vec, value)
 	vec:AppendString(value)
 end
 
+--@inline
 local function readString(vec, pos, maxLength)
 	local length
 	length, pos = readu32(vec, pos)
@@ -93,12 +98,15 @@ local function readString(vec, pos, maxLength)
 	if pos + length * 8 > vec.length then
 		error("Truncated serialized string", 2)
 	end
-	if length == 0 then
-		return "", pos
+	local value = ""
+	if length > 0 then
+		value = vec:ReadString(pos // 8, length)
+		pos = pos + length * 8
 	end
-	return vec:ReadString(pos // 8, length), pos + length * 8
+	return value, pos
 end
 
+--@inline
 local function writePath(vec, path)
 	writeu32(vec, #path)
 	for _, name in ipairs(path) do
@@ -106,6 +114,7 @@ local function writePath(vec, path)
 	end
 end
 
+--@inline
 local function readPath(vec, pos)
 	local count
 	count, pos = readu32(vec, pos)
@@ -120,11 +129,13 @@ local function readPath(vec, pos)
 	return path, pos
 end
 
+--@inline
 local function writeHeader(vec)
 	vec:AppendString(MAGIC)
 	writeu8(vec, VERSION)
 end
 
+--@inline
 local function readHeader(vec)
 	if vec.length < (#MAGIC + 1) * 8 then
 		error("Serialized data is too short", 2)
@@ -134,23 +145,27 @@ local function readHeader(vec)
 	end
 	local version = vec:Read(#MAGIC * 8, 8)
 	if version ~= VERSION then
-		error(`Unsupported serialized format version: {version}`, 2)
+		error("Unsupported serialized format version: " .. version, 2)
 	end
 	return (#MAGIC + 1) * 8
 end
 
+--@inline
 local function toSigned(value)
+	local result = value
 	if value >= 0x80000000 then
-		return value - 0x100000000
+		result = value - 0x100000000
 	end
-	return value
+	return result
 end
 
+--@inline
 local function toSigned16(value)
+	local result = value
 	if value >= 0x8000 then
-		return value - 0x10000
+		result = value - 0x10000
 	end
-	return value
+	return result
 end
 
 --@inline
@@ -172,31 +187,35 @@ local function packedCodec(n, extract, construct)
 	}
 end
 
+--@inline
 local function getEnum(name)
 	local ok, enum = pcall(function()
 		return (Enum :: any)[name]
 	end)
 	if not ok or not enum then
-		error(`Unknown enum: {name}`)
+		error("Unknown enum: " .. name)
 	end
 	return enum
 end
 
+--@inline
 local function getEnumItem(enum, value)
+	local result
 	for _, item in ipairs(enum:GetEnumItems()) do
 		if item.Value == value then
-			return item
+			result = item
+			break
 		end
 	end
-	error(`Unknown enum item: {enum}.{value}`)
+	if not result then
+		error("Unknown enum item: " .. tostring(enum) .. "." .. tostring(value))
+	end
+	return result
 end
 
+--@inline
 local function enumName(value)
-	local name = tostring(value.EnumType)
-	if string.sub(name, 1, 5) == "Enum." then
-		return string.sub(name, 6)
-	end
-	return name
+	return (tostring(value.EnumType):gsub("^Enum%.", ""))
 end
 
 local datatypes = {}
@@ -285,21 +304,19 @@ datatypes.Content = {
 	end,
 }
 
+--@inline
 local function createFont(family, weight, style)
 	weight = weight or Enum.FontWeight.Regular
 	style = style or Enum.FontStyle.Normal
 
 	local ok, font = pcall(Font.new, family, weight, style)
-	if ok then
-		return font
+	if not ok and typeof(family) == "Content" and family.SourceType == Enum.ContentSourceType.Uri then
+		ok, font = pcall(Font.new, family.Uri, weight, style)
 	end
-	if typeof(family) == "Content" and family.SourceType == Enum.ContentSourceType.Uri then
-		local fallback, result = pcall(Font.new, family.Uri, weight, style)
-		if fallback then
-			return result
-		end
+	if not ok then
+		error("Could not create Font")
 	end
-	error("Could not create Font")
+	return font
 end
 
 datatypes.Font = {
@@ -485,6 +502,7 @@ datatypes.Region3int16 = {
 		end
 	end,
 	decode = function(vec, pos)
+		--@inline
 		local function readVector()
 			local x, y, z
 			x, pos = readu16(vec, pos)
@@ -873,17 +891,22 @@ local serviceClasses = {}
 local notCreatableClasses = {}
 local classesByName = {}
 
+--@inline
 local function fetch(url)
 	local ok, httpGet = pcall(function()
 		return (game :: any).HttpGet
 	end)
+	local result
 	if ok and httpGet then
-		local success, result = pcall(httpGet, game, url)
-		if success and type(result) == "string" and result ~= "" then
-			return result
+		local success, value = pcall(httpGet, game, url)
+		if success and type(value) == "string" and value ~= "" then
+			result = value
 		end
 	end
-	return game:GetService("HttpService"):GetAsync(url)
+	if result == nil then
+		result = game:GetService("HttpService"):GetAsync(url)
+	end
+	return result
 end
 
 local function getProperties(className)
@@ -891,7 +914,8 @@ local function getProperties(className)
 		local HttpService = game:GetService("HttpService")
 		local version = fetch("https://setup.rbxcdn.com/versionQTStudio")
 		version = string.match(version, "^%s*(.-)%s*$")
-		dump = HttpService:JSONDecode(fetch(string.format("https://setup.rbxcdn.com/%s-API-Dump.json", version)))
+		local source = fetch(string.format("https://setup.rbxcdn.com/%s-API-Dump.json", version))
+		dump = HttpService:JSONDecode(source)
 		for _, class in ipairs(dump.Classes) do
 			classesByName[class.Name] = class
 			local tags = class.Tags or {}
@@ -956,6 +980,7 @@ local function getProperties(className)
 	return names
 end
 
+--@inline
 local function getInstancePath(instance)
 	local path = {}
 	local current = instance
@@ -1001,6 +1026,7 @@ local function resolvePath(path)
 	return current
 end
 
+--@inline
 local function hasClass(instance, className)
 	local ok, actual = pcall(function()
 		return instance.ClassName
@@ -1023,8 +1049,10 @@ local function resolveInstance(className, ownPath)
 
 	if notCreatableClasses[className] and #ownPath > 0 then
 		local existing = resolvePath(ownPath)
-		if existing and hasClass(existing, className) then
-			return existing
+		if existing then
+			if hasClass(existing, className) then
+				return existing
+			end
 		end
 	end
 
@@ -1035,13 +1063,16 @@ local function resolveInstance(className, ownPath)
 
 	if #ownPath > 0 then
 		local existing = resolvePath(ownPath)
-		if existing and hasClass(existing, className) then
-			return existing
+		if existing then
+			if hasClass(existing, className) then
+				return existing
+			end
 		end
 	end
 	return nil
 end
 
+--@inline
 local function isServiceClass(className)
 	if not dump then
 		getProperties(className)

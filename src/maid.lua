@@ -45,16 +45,14 @@ end
 
 --@inline
 local function position(self: Maid, task: Task): number?
-	if self._index then
-		return self._index[task]
-	end
+	return self._index and self._index[task]
 end
 
 --@inline
-local function remove(self: Maid, task: Task, position: number)
+local function remove(self: Maid, task: Task, pos: number)
 	local tasks, index = self._tasks, self._index
 	if tasks and index then
-		tasks[position] = false
+		tasks[pos] = false
 		index[task] = nil
 		self._holes += 1
 
@@ -95,6 +93,7 @@ function Maid:Task<T>(value: Task | {Task}): T
 	return candidate
 end
 
+--@inline
 local function link(self: Maid, obj: Instance, destroy: boolean)
 	isAlive(self)
 	if obj:IsA("Player") then
@@ -178,11 +177,12 @@ end
 	@return boolean -- Whether the task was tracked.
 ]=]
 function Maid:Remove(task: Task): boolean
-	local position = position(self, task)
-	if not position then
+	local pos = position(self, task)
+	if not pos then
 		return false
 	end
-	remove(self, task, position)
+
+	remove(self, task, pos)
 	cleanTask(task)
 	return true
 end
@@ -194,11 +194,12 @@ end
 	@return boolean -- Whether the task was tracked.
 ]=]
 function Maid:Release(task: Task): boolean
-	local position = position(self, task)
-	if not position then
+	local pos = position(self, task)
+	if not pos then
 		return false
 	end
-	remove(self, task, position)
+
+	remove(self, task, pos)
 	return true
 end
 

@@ -6,6 +6,7 @@
 	@prop length number -- The topmost written location in bits
 ]=]
 local Service
+--@inline
 local function Encoder()
 	if not Service then
 		local ok, service = pcall(function()
