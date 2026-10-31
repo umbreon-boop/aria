@@ -25,7 +25,7 @@ run = "umbra fmt"
 
 [tasks.lint]
 description = "Lint the project"
-tools = { "cargo:selene" = "latest" }
+tools = { "aqua:Kampfkarren/selene" = "latest" }
 run = "selene src/*"
 
 [tasks.test]
